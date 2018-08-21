@@ -8,6 +8,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"net/http"
 	"encoding/json"
+	"strconv"
 )
 
 type App struct {
@@ -54,14 +55,29 @@ func (a *App) getUsers(w http.ResponseWriter, r *http.Request) {
 		users = append(users, u)
 	}
 
-	for _, u := range users {
-		fmt.Println(u.String())
-	}
 	respondWithJSON(w, http.StatusOK, users)
 }
 
-func (a *App) getUser(w http.ResponseWriter, r *http.Request) {
+func (a *App) getUser(w http.ResponseWriter, r *http.Request) error {
+	vars := mux.Vars(r)
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid product ID")
+		return nil
+	}
 
+	u := user{ID: id}
+	if err := u.getUser(a.DB); err != nil {
+		switch err {
+		case sql.ErrNoRows:
+			respondWithError(w, http.StatusNotFound, "Product not found")
+		default:
+			respondWithError(w, http.StatusInternalServerError, err.Error())
+		}
+		return nil
+	}
+
+	respondWithJSON(w, http.StatusOK, p)
 }
 
 func (a *App) createUser(w http.ResponseWriter, r *http.Request) {
